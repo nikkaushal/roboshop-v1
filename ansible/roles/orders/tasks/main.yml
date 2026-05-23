@@ -33,6 +33,8 @@
   ansible.builtin.shell: mvn clean package -DskipTests && cp target/orders.jar /app/orders.jar
   args:
     chdir: /app
+  environment:
+    HOME: /root
 
 - name: Set orders ownership
   ansible.builtin.include_role:

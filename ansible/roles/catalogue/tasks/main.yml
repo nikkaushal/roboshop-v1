@@ -36,6 +36,9 @@
   ansible.builtin.shell: go mod tidy && CGO_ENABLED=0 go build -o /app/catalogue .
   args:
     chdir: /app
+  environment:
+    HOME: /root
+    GOPATH: /root/go
 
 - name: Set catalogue ownership
   ansible.builtin.include_role:

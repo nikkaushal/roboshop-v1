@@ -50,6 +50,8 @@
   ansible.builtin.shell: mvn clean package -DskipTests && cp target/shipping.jar /app/shipping.jar
   args:
     chdir: /app
+  environment:
+    HOME: /root
 
 - name: Set shipping ownership
   ansible.builtin.include_role:
