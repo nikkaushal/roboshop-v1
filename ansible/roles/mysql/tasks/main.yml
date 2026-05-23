@@ -1,0 +1,38 @@
+- name: Install MySQL server
+  ansible.builtin.dnf:
+    name: "{{ mysql_server_package }}"
+    state: present
+
+- name: Enable and start MySQL
+  ansible.builtin.systemd_service:
+    name: mysqld
+    enabled: true
+    state: started
+
+- name: Wait for MySQL port
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: 3306
+    delay: 10
+    timeout: 120
+
+- name: Configure MySQL root remote access
+  ansible.builtin.shell: |
+    mysql -u root -e "
+      CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY 'RoboShop@1';
+      GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+      ALTER USER 'root'@'localhost' IDENTIFIED BY 'RoboShop@1';
+      FLUSH PRIVILEGES;
+    "
+  changed_when: true
+  failed_when: false
+
+- name: Configure MySQL root with password (RHEL 9 initial install)
+  ansible.builtin.shell: |
+    mysql -u root -pRoboShop@1 -e "
+      CREATE USER IF NOT EXISTS 'root'@'%' IDENTIFIED BY 'RoboShop@1';
+      GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+      FLUSH PRIVILEGES;
+    "
+  changed_when: true
+  failed_when: false

@@ -1,0 +1,6 @@
+- name: Wait for Valkey to accept connections
+  ansible.builtin.wait_for:
+    host: "{{ valkey_host }}"
+    port: 6379
+    delay: 5
+    timeout: 300

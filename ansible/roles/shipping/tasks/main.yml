@@ -1,0 +1,69 @@
+- name: Install Java and build tools
+  ansible.builtin.dnf:
+    name:
+      - java-21-openjdk
+      - java-21-openjdk-devel
+      - maven
+      - "{{ mysql_client_package }}"
+    state: present
+
+- name: Create appuser
+  ansible.builtin.user:
+    name: appuser
+    system: true
+    shell: /bin/false
+
+- name: Deploy shipping artifact
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: deploy-artifact
+  vars:
+    artifact_zip: shipping.zip
+
+- name: Wait for MySQL
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: wait-for-mysql
+
+- name: Resolve MySQL host for JDBC
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: resolve-mysql-host
+
+- name: Initialize shipping database (cities schema)
+  ansible.builtin.shell: |
+    mysql -h {{ mysql_connect_host }} -u root -pRoboShop@1 < db/schema.sql
+    mysql -h {{ mysql_connect_host }} -u root -pRoboShop@1 < db/app-user.sql
+  args:
+    chdir: /app
+  register: shipping_db_init
+  failed_when: shipping_db_init.rc != 0
+
+- name: Verify cities database and shipping user
+  ansible.builtin.shell: |
+    mysql -h {{ mysql_connect_host }} -u shipping -pRoboShop@1 -e "USE cities; SHOW TABLES;"
+  register: shipping_db_verify
+  changed_when: false
+  failed_when: shipping_db_verify.rc != 0
+
+- name: Build shipping jar
+  ansible.builtin.shell: mvn clean package -DskipTests && cp target/shipping.jar /app/shipping.jar
+  args:
+    chdir: /app
+
+- name: Set shipping ownership
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: app-permissions
+
+- name: Install shipping systemd unit
+  ansible.builtin.template:
+    src: shipping.service.j2
+    dest: /etc/systemd/system/shipping.service
+
+- name: Start shipping service
+  ansible.builtin.systemd_service:
+    name: shipping
+    daemon_reload: true
+    enabled: true
+    state: restarted

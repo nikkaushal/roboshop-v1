@@ -1,0 +1,46 @@
+- name: Install Python
+  ansible.builtin.dnf:
+    name:
+      - python3
+      - python3-pip
+    state: present
+
+- name: Create appuser
+  ansible.builtin.user:
+    name: appuser
+    system: true
+    shell: /bin/false
+
+- name: Wait for RabbitMQ
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: wait-for-rabbitmq
+
+- name: Deploy payment artifact
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: deploy-artifact
+  vars:
+    artifact_zip: payment.zip
+
+- name: Install Python dependencies
+  ansible.builtin.pip:
+    requirements: /app/requirements.txt
+    executable: pip3
+
+- name: Set payment ownership
+  ansible.builtin.include_role:
+    name: common
+    tasks_from: app-permissions
+
+- name: Install payment systemd unit
+  ansible.builtin.template:
+    src: payment.service.j2
+    dest: /etc/systemd/system/payment.service
+
+- name: Start payment service
+  ansible.builtin.systemd_service:
+    name: payment
+    daemon_reload: true
+    enabled: true
+    state: started
